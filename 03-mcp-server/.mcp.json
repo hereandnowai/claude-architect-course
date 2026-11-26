@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "maple": {
+      "command": "uv",
+      "args": ["run", "maple_server.py"],
+      "env": {
+        "MAPLE_API_KEY": "${MAPLE_API_KEY}"
+      }
+    }
+  }
+}

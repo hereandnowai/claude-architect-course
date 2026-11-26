@@ -1,0 +1,11 @@
+[project]
+name = "claude-architect-course"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=2.14.0",
+    "claude-agent-sdk>=0.2.189",
+    "mcp>=2.3.0",
+]

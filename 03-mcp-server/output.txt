@@ -1,0 +1,175 @@
+# Real runs, 27 Nov 2026 ~00:30-01:30 IST. Claude Certified Architect course, Episode 3 of 10 "Your own MCP server".
+# Machine: macOS 26.7.3, Apple M4 Max, 128 GB. No ANTHROPIC_API_KEY set (every command ran with `env -u ANTHROPIC_API_KEY`).
+# Tools: uv 0.11.12, CPython 3.12.12, anthropic 2.14.0, claude-agent-sdk 0.2.189, mcp 2.3.0 (the official MCP Python SDK,
+#   already installed as a dependency of the Agent SDK; `uv add mcp` only names it in pyproject.toml), Claude Code 2.1.331
+#   signed in with a Claude Max plan, Ollama 0.32.13 with qwen3.5:4b.
+# Project: a scratch copy of the end-of-episode-2 Desktop folder `claude-architect-course` (paths below are shown as ~/Desktop/...).
+# MAPLE_API_KEY is a made-up demo value (maple-demo-key): Maple & Co. is a fictional shop and its "refund system" is a fake.
+# Plan usage: 7 runs on the Claude plan (2 claude -p, 5 Agent SDK). Our own MCP checks (mcp_check.py) use no model at all.
+
+################################ STEP 2: episode 2's project still runs (Ollama, qwen3.5:4b) ################################
+$ uv run loop_by_hand.py "When will PP-4821 arrive?"
+turn 0: tool_use (6.6 s)
+  tool_use: get_shipment {'tracking_number': 'PP-4821'}
+  tool_result: {"tracking_number": "PP-4821", "carrier": "ParcelPost", "where": "Local depot", "arrives": "Friday"}
+turn 1: end_turn (13.0 s)
+Answer: The parcel is in the local depot and will arrive on Friday.
+ (25.6 s wall, including loading the model)
+
+################################ STEP 3: add the official MCP SDK ################################
+$ uv add mcp
+Resolved 36 packages in 8.01s
+Checked 33 packages in 6ms
+# Nothing new was downloaded: mcp 2.3.0 was already in .venv (the Agent SDK depends on it). pyproject.toml now lists "mcp>=2.3.0".
+
+################################ STEP 5: mcp_check.py against the first maple_server.py (tools only, plain JSON text) ################################
+$ uv run mcp_check.py          # 1.6 s wall
+Tools: ['get_order', 'get_shipment', 'find_customer', 'issue_refund']
+
+get_order {'order_id': 'A1001'}
+  isError: False
+  text: {"order_id": "A1001", "customer": "Emma", "items": ["Trail tent for two"], "price": 249.0, "status": "shipped", "arrives": "Friday", "tracking": "PP-4821"}
+
+get_shipment {'tracking_number': 'PP-4821'}
+  isError: False
+  text: {"tracking_number": "PP-4821", "carrier": "ParcelPost", "where": "Local depot", "arrives": "Friday"}
+
+get_order {'order_id': 'PP-4821'}
+  isError: False
+  text: {"error": "No order with number PP-4821"}
+# Note the last call: the text says "error", but isError is False. The client can't tell that the call failed.
+
+################################ STEP 6: .mcp.json, before and after setting MAPLE_API_KEY ################################
+$ claude mcp list              # (only the maple lines shown; your other servers, if any, are listed too)
+maple: uv run maple_server.py - ⏸ Pending approval (run `claude` to approve)
+[Has warnings] Project config (shared via .mcp.json)
+ └ [Warning] [maple] mcpServers.maple: Missing environment variables: MAPLE_API_KEY
+
+$ export MAPLE_API_KEY=maple-demo-key
+$ claude                       # interactive, first start in this folder (text of the prompt, as shown)
+ New MCP server found in this project: maple
+ MCP servers may execute code or access system resources. All tool calls
+ require approval. Learn more in the MCP documentation.
+ ❯ Use this MCP server
+   Use this and all future MCP servers in this project
+   Continue without using this MCP server
+ Enter to confirm · Esc to cancel
+# (we chose "Use this MCP server", then /exit)
+
+$ claude mcp list
+maple: uv run maple_server.py - ✔ Connected
+
+################################ STEP 7: Claude Code uses Maple's tools (claude -p, on the plan) ################################
+$ claude -p "When will PP-4821 arrive?" --allowedTools "mcp__maple__*"
+PP-4821 is due to arrive **Friday**. It's with ParcelPost and is now at the local depot.
+ (Claude went on to say today's date: cropped in the video, timeless rule. 3 turns, 6.2 s.)
+# Behind the scenes (from --output-format stream-json --verbose):
+#   init: maple connected (source: project); tools mcp__maple__find_customer, get_order, get_shipment, issue_refund
+#   1. ToolSearch select:mcp__maple__get_order,mcp__maple__get_shipment,mcp__maple__find_customer  (tool search is on by default)
+#   2. mcp__maple__get_shipment {"tracking_number": "PP-4821"} -> {"tracking_number": "PP-4821", "carrier": "ParcelPost", "where": "Local depot", "arrives": "Friday"}
+# A second run (Noah, noah@example.com, "What did I order, and when will it arrive?"): find_customer -> get_order A1004 ->
+#   get_shipment PP-5150 -> "Sleeping bag, $119.00, shipped with ParcelPost, arrives Monday" (5 turns, 32.8 s).
+
+################################ STEP 8: agent_mcp.py, the same server from the Agent SDK (first maple_server.py) ################################
+$ uv run agent_mcp.py "Hi, I'm Liam, liam@example.com. What did I order?"
+MCP servers: [('maple', 'connected')]
+Claude asks for a tool: mcp__maple__find_customer {'email': 'liam@example.com'}
+Our server answered: {"result":"{\"customer_id\": \"C-102\", \"name\": \"Liam\", \"orders\": [\"A1002\"]}"}
+Claude asks for a tool: mcp__maple__get_order {'order_id': 'A1002'}
+Our server answered: {"result":"{\"order_id\": \"A1002\", \"customer\": \"Liam\", \"items\": [\"Hiking boots\", \"Wool socks\"], \"price\": 164.0, \"status\": \"packing\", \"arrives\": \"Tuesday\", \"tracking\": null}"}
+Claude: Hi Liam! Your order A1002 has hiking boots and wool socks for $164.00. It's being packed now and should arrive on Tuesday.
+Done: success, 3 turns, 5.7 s
+# The {"result": ...} wrapper: with `-> str`, the MCP SDK also sends the text as structured content. Step 9 returns CallToolResult itself.
+
+################################ STEP 9: structured errors (second maple_server.py), checked without a model ################################
+$ export MAPLE_API_KEY=maple-demo-key
+$ uv run mcp_check.py
+Tools: ['get_order', 'get_shipment', 'find_customer', 'issue_refund']
+
+get_order {'order_id': 'A1001'}
+  isError: False
+  text: {"order_id": "A1001", "customer": "Emma", "items": ["Trail tent for two"], "price": 249.0, "status": "shipped", "arrives": "Friday", "tracking": "PP-4821"}
+
+get_shipment {'tracking_number': 'PP-4821'}
+  isError: False
+  text: {"tracking_number": "PP-4821", "carrier": "ParcelPost", "where": "Local depot", "arrives": "Friday"}
+
+get_order {'order_id': 'PP-4821'}
+  isError: True
+  text: {"errorCategory": "validation", "isRetryable": false, "message": "PP-4821 is not an order number. Order numbers look like A1001. Tracking numbers like PP-4821 go to get_shipment."}
+
+get_order {'order_id': 'A1099'}
+  isError: False
+  text: {"order_id": "A1099", "found": false}
+
+get_shipment {'tracking_number': 'PP-5150'}
+  isError: True
+  text: {"errorCategory": "transient", "isRetryable": true, "message": "The carrier's tracking system timed out. Please try again."}
+
+get_shipment {'tracking_number': 'PP-5150'}
+  isError: False
+  text: {"tracking_number": "PP-5150", "carrier": "ParcelPost", "where": "On the delivery van", "arrives": "Monday"}
+
+issue_refund {'order_id': 'A1003', 'amount': 120, 'reason': 'arrived torn'}
+  isError: True
+  text: {"errorCategory": "business", "isRetryable": false, "message": "A refund can't be more than the order's price ($89.00). Tell the customer we can refund up to $89.00."}
+
+$ unset MAPLE_API_KEY
+$ uv run mcp_check.py          # last call only
+issue_refund {'order_id': 'A1003', 'amount': 120, 'reason': 'arrived torn'}
+  isError: True
+  text: {"errorCategory": "permission", "isRetryable": false, "message": "The refund system needs MAPLE_API_KEY. A human must fix the setup."}
+
+################################ STEP 10: Claude reacts to the errors (Agent SDK, on the plan) ################################
+$ export MAPLE_API_KEY=maple-demo-key
+$ uv run agent_mcp.py "Where is my parcel PP-5150?"          # transient, retryable -> Claude tried again
+MCP servers: [('maple', 'connected')]
+Claude asks for a tool: mcp__maple__get_shipment {'tracking_number': 'PP-5150'}
+Our server answered (isError): {"errorCategory": "transient", "isRetryable": true, "message": "The carrier's tracking system timed out. Please try again."}
+Claude: Transient error, retryable — retry.
+Claude asks for a tool: mcp__maple__get_shipment {'tracking_number': 'PP-5150'}
+Our server answered: [{'type': 'text', 'text': '{"tracking_number": "PP-5150", "carrier": "ParcelPost", "where": "On the delivery van", "arrives": "Monday"}'}]
+Claude: Your ParcelPost parcel PP-5150 is on the delivery van and should arrive on Monday.
+Done: success, 3 turns, 10.8 s
+
+$ uv run agent_mcp.py "I'm Olivia. Order A1003 arrived torn. Please refund 120 dollars."   # Claude checked the price first
+MCP servers: [('maple', 'connected')]
+Claude asks for a tool: mcp__maple__get_order {'order_id': 'A1003'}
+Our server answered: [{'type': 'text', 'text': '{"order_id": "A1003", "customer": "Olivia", "items": ["Rain jacket"], "price": 89.0, "status": "delivered", "arrives": "already delivered", "tracking": "PP-3907"}'}]
+Claude: Sorry your rain jacket from order A1003 arrived torn, Olivia. The order only cost $89.00, so I can't refund $120; would you like me to refund the full $89.00?
+Done: success, 2 turns, 6.9 s
+# Claude never sent the $120 refund, so the server's business rule wasn't needed this time (the rule is the safety net;
+# mcp_check.py above shows the business error it would get).
+
+$ unset MAPLE_API_KEY
+$ uv run agent_mcp.py "I'm Olivia. Order A1003 arrived torn. Please refund the 89 dollars."   # permission, not retryable
+MCP servers: [('maple', 'connected')]
+Claude: Must look up order first.
+Claude asks for a tool: mcp__maple__get_order {'order_id': 'A1003'}
+Our server answered: [{'type': 'text', 'text': '{"order_id": "A1003", "customer": "Olivia", "items": ["Rain jacket"], "price": 89.0, "status": "delivered", "arrives": "already delivered", "tracking": "PP-3907"}'}]
+Claude asks for a tool: mcp__maple__issue_refund {'order_id': 'A1003', 'amount': 89, 'reason': 'Rain jacket arrived torn'}
+Our server answered (isError): {"errorCategory": "permission", "isRetryable": false, "message": "The refund system needs MAPLE_API_KEY. A human must fix the setup."}
+Claude: I'm sorry about your torn rain jacket, Olivia — I tried to refund the $89 for order A1003, but our refund system has a setup problem, so no money was refunded. A team member needs to fix that before the refund can go through, and I can't retry it from here.
+Done: success, 3 turns, 12.2 s
+
+################################ STEP 11: resources (final maple_server.py), checked without a model ################################
+$ export MAPLE_API_KEY=maple-demo-key
+$ uv run mcp_check.py          # last lines
+
+Resources: ['maple://policies']
+maple://policies/refunds: Items that arrive damaged get a full refund or a replacement. Ask for a photo.
+maple://policies/returns: Unused items can be returned within 45 days of delivery.
+maple://policies/shipping: Standard shipping takes 3 to 5 working days.
+maple://policies/warranty: Tents: 2 years on poles and seams.
+
+################################ STEP 12: Claude reads the catalogue (agent_mcp.py with the two resource tools) ################################
+$ uv run agent_mcp.py "Can I return a sale item, and for how long?"
+MCP servers: [('maple', 'connected')]
+Claude asks for a tool: ListMcpResourcesTool {'server': 'maple'}
+Our server answered: [{"name":"policy_catalogue","uri":"maple://policies","description":"A catalogue of Maple's policy files: one line about each.","mimeType":"text/plain","server":"maple"}]
+Claude asks for a tool: ReadMcpResourceTool {'server': 'maple', 'uri': 'maple://policies'}
+Our server answered: {"contents":[{"uri":"maple://policies","mimeType":"text/plain","text":"maple://policies/refunds: Items that arrive damaged get a full refund or a replacement. Ask for a photo.\nmaple://policies/returns: Unused items can be returned within 45 days of delivery.\nmaple://policies/shipping: Standard shipping takes 3 to 5 working days.\nmaple://policies/warranty: Tents: 2 years on poles and seams."}]}
+Claude asks for a tool: ReadMcpResourceTool {'server': 'maple', 'uri': 'maple://policies/returns'}
+Our server answered: {"contents":[{"uri":"maple://policies/returns","mimeType":"text/plain","text":"# Returns\n\n- Unused items can be returned within 45 days of delivery.\n- Tents and sleeping bags must be dry and packed in their bag.\n- Sale items can also be returned within 30 days of delivery, for store credit only.\n- Use the prepaid return label from your order email.\n"}]}
+Claude: Yes, you can return a sale item within 30 days of delivery, but you'll get store credit, not a refund. Use the prepaid return label from your order email, and if it's a tent or sleeping bag, it needs to be dry and packed in its bag.
+Done: success, 4 turns, 7.1 s
