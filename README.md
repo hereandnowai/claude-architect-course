@@ -17,7 +17,7 @@ Agent SDK examples run on a normal Claude Pro or Max plan login.
 | # | Topic | Code |
 |---|---|---|
 | 1 | [The exam explained + your first AI agent in Python](https://youtu.be/hCftb5IPVas) (agent loop by hand, then with the Claude Agent SDK) | [01-first-agent](01-first-agent) |
-| 2 | Tools Claude picks correctly (tool descriptions, tool_choice, 4 vs 18 tools, built-in tools) | [02-tool-design](02-tool-design) |
+| 2 | [Tools Claude picks correctly](https://youtu.be/5dw-6QkWa2Q) (tool descriptions, tool_choice, 4 vs 18 tools, built-in tools) | [02-tool-design](02-tool-design) |
 | 3 | Your own MCP server | coming soon |
 | 4 | Rules the agent can't break (hooks, escalation) | coming soon |
 | 5 | Claude Code for a team (CLAUDE.md, rules, commands, skills) | coming soon |
