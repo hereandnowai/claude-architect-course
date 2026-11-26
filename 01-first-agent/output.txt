@@ -1,0 +1,393 @@
+# Real runs, 26 Nov 2026 ~11:15-12:10 IST. Claude Certified Architect course, Episode 1 of 10 "Your first AI agent".
+# Machine: macOS 26.7.3, Apple M4 Max, 128 GB. No ANTHROPIC_API_KEY set (every command ran with `env -u ANTHROPIC_API_KEY`).
+# Tools: uv 0.11.12, CPython 3.12.12 (picked by `uv init --python 3.12`), anthropic 2.14.0, claude-agent-sdk 0.2.189
+#   (it bundles Claude Code CLI 2.1.332), Claude Code 2.1.331 installed separately and signed in with a Claude Max plan,
+#   Ollama 0.32.13 with qwen3.5:4b (3.3 GB download).
+# Project: a fresh folder `claude-architect-course` (a scratch "Desktop" folder), set up exactly as the README says.
+# "normal" = Ollama may use the GPU (this Mac: 100% GPU). "CPU only" = a test-only copy of the model with num_gpu 0 and a
+#   4,096-token context (ollama create qwen3.5-4b-cputest, removed afterwards), to see what a laptop without a graphics
+#   chip gets. This M4 Max processor is fast; an older laptop processor will be slower.
+# Each "run" = one `uv run loop_by_hand.py "<question>"` (a new Python process; wall time includes Python start-up).
+# Per-turn times are printed by the script itself (time of one messages.create call).
+
+################################ SETUP (steps 4 and 5) ################################
+$ uv --version
+uv 0.11.12 (63c5f57d3 2026-05-08 aarch64-apple-darwin)
+$ uv init --python 3.12
+Initialized project `claude-architect-course`
+$ uv add anthropic claude-agent-sdk
+Using CPython 3.12.12 interpreter at: /opt/homebrew/opt/python@3.12/bin/python3.12
+Creating virtual environment at: .venv
+Resolved 36 packages in 268ms
+Installed 33 packages in 73ms
+ + annotated-types==0.8.0
+ + anthropic==2.14.0
+ + anyio==4.16.0
+ + attrs==26.1.0
+   ... (33 packages installed in total)
+$ uv run main.py
+Hello from claude-architect-course!
+
+################################ HAND LOOP, normal (step 8) ################################
+# Result: "Where is my order A1001?"  get_order called correctly 10/10, answer correct (shipped, Friday) 10/10,
+#   2 turns every time (turn 0: tool_use, turn 1: end_turn), 2.2-3.1 s per run (median 2.6 s).
+# Extra questions, 3 runs each: Liam / A1002 3/3; A1003 delivered 3/3; unknown A9999 3/3 (tool called, the agent
+#   says there is no such order, no made-up answer); "What does Maple & Co. sell?" 3/3 answered with no tool call
+#   (end_turn on turn 0; no tool fits, so the model answers directly).
+
+### loop_by_hand.py: "Where is my order A1001?" x10
+
+--- run 1 (3.1 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (1.6 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (0.8 s)
+Answer: Order A1001 was shipped by Maple & Co. and is expected to arrive this Friday.
+
+--- run 2 (2.4 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (0.6 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (1.0 s)
+Answer: Your order A1001, containing the Trail tent for two, was shipped and is on its way. It is expected to arrive on Friday.
+
+--- run 3 (2.4 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (0.6 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (0.9 s)
+Answer: Your order A1001 for the Trail tent for two has been shipped and is expected to arrive on Friday.
+
+--- run 4 (2.9 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (0.6 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (1.1 s)
+Answer: Emma, your order A1001 for a Trail tent for two has been shipped and is expected to arrive on Friday.
+
+--- run 5 (2.6 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (0.6 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (1.2 s)
+Answer: Emma, your order A1001 containing a Trail tent for two has been shipped and is expected to arrive this Friday.
+
+--- run 6 (2.4 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (0.7 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (0.9 s)
+Answer: Your order A1001, a trail tent for two, is currently shipped and will arrive this Friday.
+
+--- run 7 (2.2 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (0.6 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (0.8 s)
+Answer: Order A1001 has been shipped and is scheduled to arrive on Friday.
+
+--- run 8 (2.4 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (0.6 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (1.0 s)
+Answer: Your order A1001 containing a trail tent is on its way and will arrive Friday.
+
+--- run 9 (3.1 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (1.0 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (1.2 s)
+Answer: Your order A1001 with the trail tent has been shipped and is scheduled to arrive on Friday.
+
+--- run 10 (3.1 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (0.9 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (1.1 s)
+Answer: Your order A1001, Emma, which contains a Trail tent for two, is shipped and is expected to arrive this Friday.
+SUMMARY loop_by_hand.py "Where is my order A1001?": tool correct 10/10, answer has ['friday'] 10/10, wall 2.2-3.1 s (median 2.6)
+
+### loop_by_hand.py: "Hi, this is Liam. What is in my order A1002 and when does it arrive?" x3
+
+--- run 1 (3.3 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Hi, this is Liam. What is in my order A1002 and when does it arrive?"
+turn 0: tool_use (1.6 s)
+  tool_use: get_order {'order_id': 'A1002'}
+turn 1: end_turn (0.9 s)
+Answer: Hi Liam, your order contains hiking boots and wool socks. It is currently being packed and is scheduled to arrive on Tuesday.
+
+--- run 2 (2.4 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Hi, this is Liam. What is in my order A1002 and when does it arrive?"
+turn 0: tool_use (0.6 s)
+  tool_use: get_order {'order_id': 'A1002'}
+turn 1: end_turn (1.0 s)
+Answer: Your order A1002 contains hiking boots and wool socks, and it is scheduled to arrive on Tuesday.
+
+--- run 3 (2.4 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Hi, this is Liam. What is in my order A1002 and when does it arrive?"
+turn 0: tool_use (0.6 s)
+  tool_use: get_order {'order_id': 'A1002'}
+turn 1: end_turn (0.9 s)
+Answer: Your order A1002 contains hiking boots and wool socks, and it is scheduled to arrive on Tuesday.
+SUMMARY loop_by_hand.py "Hi, this is Liam. What is in my order A1002 and when does it arrive?": tool correct 3/3, answer has ['tuesday'] 3/3, wall 2.4-3.3 s (median 2.4)
+
+### loop_by_hand.py: "Has order A1003 been delivered?" x3
+
+--- run 1 (2.7 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Has order A1003 been delivered?"
+turn 0: tool_use (1.3 s)
+  tool_use: get_order {'order_id': 'A1003'}
+turn 1: end_turn (0.6 s)
+Answer: Yes, Olivia's order A1003 has been delivered.
+
+--- run 2 (2.1 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Has order A1003 been delivered?"
+turn 0: tool_use (0.6 s)
+  tool_use: get_order {'order_id': 'A1003'}
+turn 1: end_turn (0.7 s)
+Answer: Yes, order A1003 for Olivia has already been delivered.
+
+--- run 3 (2.3 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Has order A1003 been delivered?"
+turn 0: tool_use (0.6 s)
+  tool_use: get_order {'order_id': 'A1003'}
+turn 1: end_turn (1.0 s)
+Answer: Yes, Olivia's order for a rain jacket (A1003) has already been delivered.
+SUMMARY loop_by_hand.py "Has order A1003 been delivered?": tool correct 3/3, answer has ['deliver'] 3/3, wall 2.1-2.7 s (median 2.3)
+
+### loop_by_hand.py: "Where is my order A9999?" x3
+
+--- run 1 (3.2 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A9999?"
+turn 0: tool_use (1.3 s)
+  tool_use: get_order {'order_id': 'A9999'}
+turn 1: end_turn (1.1 s)
+Answer: It seems like the order number A9999 doesn't exist in our system. Please double-check the number or provide a different order ID if you'd like assistance.
+
+--- run 2 (2.9 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A9999?"
+turn 0: tool_use (0.6 s)
+  tool_use: get_order {'order_id': 'A9999'}
+turn 1: end_turn (1.4 s)
+Answer: I am unable to find an order with the number A9999. Please double-check that you have entered the correct number, or let me know if you'd like help locating it.
+
+--- run 3 (3.7 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A9999?"
+turn 0: tool_use (0.9 s)
+  tool_use: get_order {'order_id': 'A9999'}
+turn 1: end_turn (1.9 s)
+Answer: We don't have an order record for A9999, so it looks like the information you need isn't available. Could you double-check your order number or let me know what date you placed your order?
+SUMMARY loop_by_hand.py "Where is my order A9999?": tool correct 3/3, answer has [] 3/3, wall 2.9-3.7 s (median 3.2)
+
+### loop_by_hand.py: "What does Maple & Co. sell?" x3
+
+--- run 1 (2.4 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "What does Maple & Co. sell?"
+turn 0: end_turn (1.5 s)
+Answer: Maple & Co. sells outdoor gear, including items like hiking equipment and camp supplies.
+
+--- run 2 (1.1 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "What does Maple & Co. sell?"
+turn 0: end_turn (0.4 s)
+Answer: Maple & Co. sells outdoor gear.
+
+--- run 3 (2.7 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "What does Maple & Co. sell?"
+turn 0: end_turn (1.9 s)
+Answer: I don't have access to a database of all our inventory, so I can't give you the complete list of items we sell right now. However, as an outdoor-gear shop, we typically offer items like hiking boots, jackets, and tents. To find out specifically what is in stock, could you tell me which order number you are interested in? For example, I can look up the details for order A1001.
+SUMMARY loop_by_hand.py "What does Maple & Co. sell?": tool correct 3/3, answer has [] 3/3, wall 1.1-2.7 s (median 2.4)
+
+################################ HAND LOOP, CPU only ################################
+# Result: A1001 10/10 correct tool, 10/10 correct answer; 4.4-14.7 s per run (median 5.9 s; the first run includes
+#   loading the model into memory). Turn 0 took 1.4-2.3 s (8.9 s with loading), turn 1 2.0-5.8 s.
+
+### loop_by_hand.py: "Where is my order A1001?" x10
+
+--- run 1 (14.7 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (8.9 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (2.9 s)
+Answer: Your order A1001 for a Trail tent for two has been shipped and is arriving on Friday.
+
+--- run 2 (5.0 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (1.4 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (2.7 s)
+Answer: Your order A1001, containing a trail tent for two, is currently shipped and will be arriving on Friday.
+
+--- run 3 (4.4 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (1.6 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (2.0 s)
+Answer: Your order, Emma, is shipped and is arriving Friday.
+
+--- run 4 (8.2 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (1.7 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (5.8 s)
+Answer: Your order A1001, containing a Trail tent for two, is currently shipped and will arrive on Friday.
+
+--- run 5 (5.9 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (1.8 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (3.4 s)
+Answer: Your order A1001 for a Trail tent for two is currently shipped and arrives on Friday.
+
+--- run 6 (7.3 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (2.3 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (4.2 s)
+Answer: Your order A1001 with the Trail tent for two has shipped and is arriving Friday.
+
+--- run 7 (5.5 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (2.0 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (2.7 s)
+Answer: Your order A1001 with the Trail tent for two has been shipped and is scheduled to arrive on Friday.
+
+--- run 8 (7.6 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (1.5 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (5.3 s)
+Answer: Your order A1001 containing the Trail tent for two is shipped and should arrive on Friday.
+
+--- run 9 (4.8 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (2.0 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (2.0 s)
+Answer: Your order A1001 has been shipped and is expected to arrive on Friday.
+
+--- run 10 (4.8 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A1001?"
+turn 0: tool_use (1.4 s)
+  tool_use: get_order {'order_id': 'A1001'}
+turn 1: end_turn (2.6 s)
+Answer: Your order A1001 has shipped and is arriving this Friday.
+SUMMARY loop_by_hand.py "Where is my order A1001?": tool correct 10/10, answer has ['friday'] 10/10, wall 4.4-14.7 s (median 5.9)
+
+### loop_by_hand.py: "Hi, this is Liam. What is in my order A1002 and when does it arrive?" x2
+
+--- run 1 (11.0 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Hi, this is Liam. What is in my order A1002 and when does it arrive?"
+turn 0: tool_use (6.1 s)
+  tool_use: get_order {'order_id': 'A1002'}
+turn 1: end_turn (4.1 s)
+Answer: Your order A1002 contains hiking boots and wool socks. It is currently packing and should arrive on Tuesday.
+
+--- run 2 (4.2 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Hi, this is Liam. What is in my order A1002 and when does it arrive?"
+turn 0: tool_use (1.1 s)
+  tool_use: get_order {'order_id': 'A1002'}
+turn 1: end_turn (2.2 s)
+Answer: Your order A1002 contains hiking boots and wool socks, and it is arriving on Tuesday.
+SUMMARY loop_by_hand.py "Hi, this is Liam. What is in my order A1002 and when does it arrive?": tool correct 2/2, answer has ['tuesday'] 2/2, wall 4.2-11.0 s (median 11.0)
+
+### loop_by_hand.py: "Where is my order A9999?" x2
+
+--- run 1 (8.1 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A9999?"
+turn 0: tool_use (4.8 s)
+  tool_use: get_order {'order_id': 'A9999'}
+turn 1: end_turn (2.4 s)
+Answer: Sorry, we couldn't find an order with the number A9999. Please double-check your order number and try again.
+
+--- run 2 (4.2 s wall, tool OK, answer OK)
+$ uv run loop_by_hand.py "Where is my order A9999?"
+turn 0: tool_use (0.9 s)
+  tool_use: get_order {'order_id': 'A9999'}
+turn 1: end_turn (2.5 s)
+Answer: I'm sorry, but there is no order found with the number A9999. Could you please check if the order number might be entered incorrectly?
+SUMMARY loop_by_hand.py "Where is my order A9999?": tool correct 2/2, answer has [] 2/2, wall 4.2-8.1 s (median 8.1)
+
+################################ WHY thinking={"type": "disabled"} IS IN loop_by_hand.py ################################
+# First version of the script (no thinking line, max_tokens=1024), normal mode, 26 Nov ~11:25 IST:
+#   qwen3.5:4b is a thinking model and Ollama lets it think by default. A1001: 10/10 correct, 3.7-5.7 s per run.
+#   But in 3 of 12 runs of other questions (4 questions x 3) the model kept thinking until it hit max_tokens (stop_reason max_tokens,
+#   about 25 s, no answer): "Hi, this is Liam..." 2 of 3 runs, "Where is my order A9999?" 1 of 3 runs.
+#   Our loop handled it honestly ("Stopped early: max_tokens"), but a beginner needs it to work.
+# Side test, same question 5 times each: thinking disabled -> 5/5 tool_use, 31 output tokens, 0.8-1.5 s;
+#   thinking on with max_tokens 4096 -> 5/5 tool_use but 75-549 output tokens, 2.4-14.2 s.
+# Decision: thinking={"type": "disabled"} with the comment "Ollama only". For Claude, leave the line out:
+#   current Claude models (e.g. Claude Opus 5.5) reject {"type": "disabled"} and decide on thinking themselves.
+# Example of the old behaviour (first version):
+#   $ uv run loop_by_hand.py "Hi, this is Liam. What is in my order A1002 and when does it arrive?"
+#   turn 0: max_tokens (26.0 s)
+#   Answer: Stopped early: max_tokens
+
+################################ AGENT SDK (step 11), on the Claude Max plan login ################################
+# 3 runs in total (kept small: each run uses the plan's limits). No API key: the init message says apiKeySource "none".
+# Model in the init message: claude-opus-5-5 (the plan's default). The result's model_usage also lists claude-haiku-5-5 (very likely
+#   Claude Code's small model for side tasks). Built-in tools: none (tools=[]); the only tool is mcp__maple__get_order.
+
+## run 1: the script exactly as the viewer runs it
+$ uv run agent_sdk.py
+Claude asks for a tool: mcp__maple__get_order {'order_id': 'A1001'}
+Our tool answered: [{'type': 'text', 'text': '{"order_id": "A1001", "customer": "Emma", "items": ["Trail tent for two"], "status": "shipped", "arrives": "Friday"}'}]
+Claude: Your order A1001, the Trail tent for two, has shipped and should arrive on Friday.
+Done: success, 2 turns, 5.9 s
+   (11.7 s wall for the whole command)
+
+## runs 2 and 3: the same `options`, through a small probe script (not part of the project) that also prints the
+## init message and the ResultMessage fields
+
+$ question: Where is my order A1001?
+init: model claude-opus-5-5 | tools ['mcp__maple__get_order'] | apiKeySource none
+result: success stop_reason end_turn turns 2 duration_ms 8622 models ['claude-haiku-5-5', 'claude-opus-5-5']
+final text: Your order A1001, the Trail tent for two, has shipped and should arrive on Friday.
+wall 9.4 s
+
+$ question: Hi, this is Liam. What is in my order A1002 and when does it arrive?
+init: model claude-opus-5-5 | tools ['mcp__maple__get_order'] | apiKeySource none
+result: success stop_reason end_turn turns 2 duration_ms 16994 models ['claude-haiku-5-5', 'claude-opus-5-5']
+final text: Hi Liam! Order A1002 has hiking boots and wool socks, and it's being packed now. It should arrive on Tuesday.
+wall 17.8 s
+
+################################ EPISODE 2 TEASER: a second tool with a lazy description ################################
+# Script: teaser/lazy_tool.py (local qwen3.5:4b, same loop). Full log of all 120 runs: teaser/teaser-runs.txt.
+# Tools: get_order (our good description) + get_shipment, which takes a TRACKING number like PP-4821.
+#   lazy       = good get_order + lazy get_shipment ("Gets shipment info.", input "id")
+#   both-lazy  = lazy get_order ("Gets order info.") + lazy get_shipment
+#   both-good  = good get_order + good get_shipment ("Track a parcel ... by its tracking number ... does not accept
+#                order numbers like A1001: for those, use get_order ...")
+# First tool chosen, 10 runs each (normal mode):
+#   question                                         lazy               both-lazy              both-good
+#   "When will PP-4821 arrive?"  (right: shipment)   WRONG 10/10        wrong 4/10             right 10/10
+#   "Where is my parcel PP-4821?" (right: shipment)  right 10/10        right 10/10            right 10/10
+#   "Where is my order A1001?"   (right: order)      right 10/10        right 10/10            right 10/10
+#   "Where is my parcel? My order number is A1001."  right 10/10        wrong 2/10             wrong 2/10 (both times
+#                                                                                              it then fixed itself)
+# The headline case: with the lazy description, "When will PP-4821 arrive?" went to get_order 10 times out of 10
+#   (get_order's description mentions "when it arrives"; get_shipment's says nothing), and the customer was told
+#   "There is no order with the number PP-4821", although the parcel exists. With good descriptions: 10 out of 10 right.
+# Example, lazy, run 1:
+### teaser/lazy_tool.py lazy "When will PP-4821 arrive?" x10
+
+--- run 1 (3.5 s wall, first tool: get_order)
+[variant: lazy]
+turn 0: tool_use (1.9 s)
+  tool_use: get_order {'order_id': 'PP-4821'}
+  tool_result: {"error": "No order with number PP-4821"}
+turn 1: end_turn (0.8 s)
+Answer: There is no order with the number PP-4821.
+
+# Example, both-good, run 1:
+### teaser/lazy_tool.py both-good "When will PP-4821 arrive?" x10
+
+--- run 1 (2.7 s wall, first tool: get_shipment)
+[variant: both-good]
+turn 0: tool_use (1.4 s)
+  tool_use: get_shipment {'id': 'PP-4821'}
+  tool_result: {"carrier": "ParcelPost", "where": "Local depot", "arrives": "Friday"}
+turn 1: end_turn (0.5 s)
+Answer: Your parcel will arrive on Friday.
+

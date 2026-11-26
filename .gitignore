@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[oc]
+.venv/
+build/
+dist/
+*.egg-info
+# IDEs and OS
+.idea/
+.vscode/
+.DS_Store
+# Never published
+social-media-content/
+.env
+*.env
